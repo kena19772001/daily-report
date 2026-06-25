@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>營建工程管理日報表</title>
+  <style>
+    body { font-family: "微軟正黑體", sans-serif; background-color: #f0f2f0; margin: 0; }
+    h1 { background-color: #1a6b4f; color: white; text-align: center; padding: 20px; margin: 0; font-size: 22px; }
+    p { text-align: center; color: #555; margin-top: 20px; }
+    .card { background-color: white; margin: 20px; padding: 20px; border-radius: 10px; }
+    h2 { color: #1a6b4f; font-size: 18px; }
+    input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; font-family: inherit; }
+    button { width: 100%; background-color: #1a6b4f; color: white; padding: 14px; border: none; border-radius: 6px; font-size: 16px; margin-top: 10px; }
+    .hidden { display: none; }
+    .weather-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 8px 0 16px 0; }
+    .weather-option { background-color: white; border: 1px solid #ccc; border-radius: 6px; padding: 16px; text-align: center; cursor: pointer; font-size: 16px; }
+    .weather-option.selected { background-color: #1a6b4f; color: white; border-color: #1a6b4f; }
+    .period-label { text-align: left; color: #333; font-weight: bold; margin: 10px 0 4px 0; }
+    .work-item { border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .work-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .work-name { font-weight: bold; color: #1a6b4f; }
+    .work-unit { color: #888; }
+    .work-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+    .mini-label { font-size: 13px; color: #888; margin-bottom: 4px; }
+    .num { width: 100%; padding: 8px; text-align: center; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; margin: 0; }
+    .total { padding: 8px; font-size: 18px; font-weight: bold; color: #1a6b4f; }
+    .save-tip { text-align: center; color: #1a6b4f; font-weight: bold; margin-top: 8px; min-height: 20px; }
+    .cat-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .cat-tab { width: auto; flex: 1 1 auto; background-color: #e8efe9; color: #1a6b4f; padding: 10px 14px; margin: 0; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; }
+    .cat-tab.active { background-color: #1a6b4f; color: white; }
+    .admin-item { display: grid; grid-template-columns: 2fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .admin-item input { margin: 0; padding: 10px; }
+    .mini-btn { width: auto; margin: 0; padding: 10px 14px; font-size: 14px; }
+    .mini-btn.del { background-color: #c0392b; }
+    .light-btn { background-color: #e8efe9; color: #1a6b4f; }
+    .daigong-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px 0; }
+    .daigong-row input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+    .field-label { text-align: left; font-size: 13px; color: #888; margin-top: 8px; }
+    textarea { min-height: 48px; resize: vertical; }
+    .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .photo-item { position: relative; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+    .photo-item img { width: 100%; display: block; }
+    .photo-item .del-photo { position: absolute; top: 6px; right: 6px; width: auto; margin: 0; padding: 6px 10px; font-size: 13px; background-color: #c0392b; }
+
+    /* ===== 列印／PDF 專用樣式 ===== */
+    #printArea { display: none; }
+    .report-title { text-align: center; font-size: 22px; font-weight: bold; color: #000; border-bottom: 3px solid #1a6b4f; padding-bottom: 10px; margin-bottom: 16px; }
+    .report-subtitle { font-size: 16px; font-weight: bold; color: #1a6b4f; margin: 18px 0 8px 0; }
+    table.report { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    table.report td, table.report th { border: 1px solid #333; padding: 8px 10px; font-size: 14px; }
+    table.report td.label { background-color: #f0f2f0; font-weight: bold; width: 18%; white-space: nowrap; }
+    table.report th { background-color: #f0f2f0; font-weight: bold; }
+    table.work-table td, table.work-table th { font-size: 11px; padding: 5px 6px; }
+    table.sign-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+    table.sign-table td { border: 1px solid #333; height: 70px; vertical-align: bottom; text-align: center; font-size: 13px; padding-bottom: 6px; width: 33.3%; }
+    .report-photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .report-photos img { width: 100%; border: 1px solid #999; }
+    .page-break { page-break-before: always; }
+
+    @media print {
+      body { background-color: white; }
+      #page-list, #page-admin, #page-daily { display: none !important; }
+      h1 { display: none !important; }
+      #printArea { display: block !important; margin: 0; padding: 0; }
+      .card { box-shadow: none; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>營建工程管理日報表</h1>
+
+  <!-- ===== 第一頁：專案清單 ===== -->
+  <div id="page-list">
+    <div class="card">
+      <h2>1. 建立專案</h2>
+      <input type="text" id="projectName" placeholder="輸入新專案名稱">
+      <input type="text" id="companyName" placeholder="公司名稱">
+      <button onclick="addProject()">新增專案</button>
+    </div>
+    <div class="card">
+      <button class="light-btn" onclick="openAdmin()">⚙ 管理工項（新增 / 修改 / 刪除）</button>
+    </div>
+    <div id="projectList"></div>
+  </div>
+
+  <!-- ===== 管理工項後台 ===== -->
+  <div id="page-admin" class="hidden">
+    <div class="card">
+      <h2>⚙ 工項管理後台</h2>
+      <p style="text-align:left; color:#555; margin-top:8px;">在這裡新增、修改、刪除大類和工項。改完日報會自動跟著更新。</p>
+    </div>
+    <div class="card">
+      <h2>新增大類</h2>
+      <input type="text" id="newCatName" placeholder="例如：機電工程">
+      <button onclick="addCategory()">＋ 新增大類</button>
+    </div>
+    <div id="adminArea"></div>
+    <div class="card">
+      <button onclick="goBackToListFromAdmin()">← 返回專案清單</button>
+    </div>
+  </div>
+
+  <!-- ===== 日報頁 ===== -->
+  <div id="page-daily" class="hidden">
+
+    <div class="card">
+      <h2 id="dailyTitle">日報頁</h2>
+      <div class="field-label">日報日期</div>
+      <input type="date" id="reportDate">
+    </div>
+
+    <div class="card">
+      <h2>2. 今日天氣</h2>
+      <div class="period-label">上午</div>
+      <div class="weather-group" id="weather-am">
+        <div class="weather-option" onclick="selectWeather('am', this)">晴</div>
+        <div class="weather-option" onclick="selectWeather('am', this)">陰</div>
+        <div class="weather-option" onclick="selectWeather('am', this)">雨</div>
+        <div class="weather-option" onclick="selectWeather('am', this)">豪大雨</div>
+        <div class="weather-option" onclick="selectWeather('am', this)">颱</div>
+      </div>
+      <div class="period-label">下午</div>
+      <div class="weather-group" id="weather-pm">
+        <div class="weather-option" onclick="selectWeather('pm', this)">晴</div>
+        <div class="weather-option" onclick="selectWeather('pm', this)">陰</div>
+        <div class="weather-option" onclick="selectWeather('pm', this)">雨</div>
+        <div class="weather-option" onclick="selectWeather('pm', this)">豪大雨</div>
+        <div class="weather-option" onclick="selectWeather('pm', this)">颱</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. 人員、材料、機具紀錄</h2>
+      <div class="cat-tabs" id="catTabs"></div>
+      <div id="workArea"></div>
+    </div>
+
+    <div class="card">
+      <h2>4. 現場照片</h2>
+      <p style="text-align:left; color:#555; margin:8px 0;">可拍照或從相簿選取，支援多張。</p>
+      <input type="file" id="photoInput" accept="image/*" multiple style="display:none;" onchange="addPhotos(event)">
+      <button onclick="document.getElementById('photoInput').click()">＋ 拍照 / 選照片</button>
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+
+    <div class="card">
+      <button onclick="saveDaily()">💾 儲存日報</button>
+      <div class="save-tip" id="saveTip"></div>
+      <button onclick="exportPDF()">📄 輸出 PDF</button>
+      <button onclick="goBackToList()">← 返回專案清單</button>
+    </div>
+
+  </div>
+
+  <!-- ===== 列印／PDF 輸出區 ===== -->
+  <div id="printArea"></div>
+
+  <script>
+    var defaultCategories = {
+      "假設工程": [
+        { name: "粗工", unit: "工" }, { name: "施工架工程", unit: "工" },
+        { name: "安全圍籬工程", unit: "工" }, { name: "點井工程", unit: "工" },
+        { name: "吊料工程", unit: "工" }
+      ],
+      "基礎工程": [
+        { name: "預壘樁工程", unit: "工" }, { name: "土方工程", unit: "工" },
+        { name: "連續壁工程", unit: "工" }, { name: "鋼軌樁工程", unit: "工" },
+        { name: "支撐工程", unit: "工" }, { name: "安全監測工程", unit: "工" }
+      ],
+      "結構工程": [
+        { name: "鋼筋工程", unit: "工" }, { name: "鋼構工程", unit: "工" }
+      ],
+      "建築工程": [ { name: "砌磚工程", unit: "工" } ],
+      "裝修工程": [ { name: "粉刷工程", unit: "工" } ],
+      "營建材料": [
+        { name: "海菜粉", unit: "包" }, { name: "七厘石", unit: "包" },
+        { name: "填縫劑(本組)", unit: "包" }, { name: "黏著劑", unit: "包" },
+        { name: "水泥", unit: "包" }, { name: "碎石", unit: "米" },
+        { name: "砂", unit: "米" }, { name: "混凝土2000psi", unit: "米" },
+        { name: "混凝土2500psi", unit: "米" }, { name: "混凝土3000psi", unit: "米" },
+        { name: "混凝土3500psi", unit: "米" }, { name: "混凝土4000psi", unit: "米" },
+        { name: "混凝土5000psi", unit: "米" }, { name: "紅磚", unit: "塊" }
+      ],
+      "機具設備": [
+        { name: "怪手PC30", unit: "hr" }, { name: "怪手PC60", unit: "hr" },
+        { name: "怪手PC120", unit: "hr" }, { name: "破碎機PC30", unit: "hr" },
+        { name: "破碎機PC60", unit: "hr" }, { name: "破碎機PC120", unit: "hr" },
+        { name: "吊卡", unit: "hr" }, { name: "全吊25t", unit: "hr" },
+        { name: "全吊40t", unit: "hr" }, { name: "全吊60t", unit: "hr" },
+        { name: "卡車8.8t", unit: "hr" }, { name: "板車", unit: "趟" },
+        { name: "卡車21t", unit: "輛" }, { name: "拖車35t", unit: "輛" }
+      ]
+    };
+
+    var categories = {};
+    var projects = [];
+    var currentProjectIndex = -1;
+    var currentCategory = "";
+    var currentPhotos = [];
+
+    function saveCategories() { localStorage.setItem("myCategories", JSON.stringify(categories)); }
+    function loadCategories() {
+      var saved = localStorage.getItem("myCategories");
+      if (saved !== null) { categories = JSON.parse(saved); }
+      else { categories = defaultCategories; saveCategories(); }
+    }
+    function saveProjects() { localStorage.setItem("myProjects", JSON.stringify(projects)); }
+    function loadProjects() {
+      var saved = localStorage.getItem("myProjects");
+      if (saved !== null) { projects = JSON.parse(saved); }
+      showProjects();
+    }
+
+    function addProject() {
+      var name = document.getElementById("projectName").value;
+      var company = document.getElementById("companyName").value;
+      if (name === "") { alert("請先輸入專案名稱"); return; }
+      projects.push({ name: name, company: company, daily: {} });
+      document.getElementById("projectName").value = "";
+      document.getElementById("companyName").value = "";
+      saveProjects(); showProjects();
+    }
+    function showProjects() {
+      var listBox = document.getElementById("projectList");
+      listBox.innerHTML = "";
+      for (var i = 0; i < projects.length; i++) {
+        listBox.innerHTML +=
+          '<div class="card" onclick="openProject(' + i + ')">' +
+            '<h2>' + projects[i].name + '</h2>' +
+            '<p>公司名稱：' + projects[i].company + '</p>' +
+            '<button onclick="event.stopPropagation(); deleteProject(' + i + ')">刪除專案</button>' +
+          '</div>';
+      }
+    }
+    function deleteProject(index) {
+      if (confirm("確定要刪除這個專案嗎？")) {
+        projects.splice(index, 1); saveProjects(); showProjects();
+      }
+    }
+
+    function openAdmin() {
+      document.getElementById("page-list").classList.add("hidden");
+      document.getElementById("page-admin").classList.remove("hidden");
+      buildAdminPage();
+    }
+    function goBackToListFromAdmin() {
+      document.getElementById("page-admin").classList.add("hidden");
+      document.getElementById("page-list").classList.remove("hidden");
+    }
+    function buildAdminPage() {
+      var area = document.getElementById("adminArea");
+      area.innerHTML = "";
+      for (var cat in categories) {
+        var html = '<div class="card">';
+        html += '<div class="work-head"><span class="work-name" style="font-size:18px;">' + cat + '</span>';
+        html += '<button class="mini-btn del" onclick="deleteCategory(\'' + cat + '\')">刪除大類</button></div>';
+        var items = categories[cat];
+        for (var i = 0; i < items.length; i++) {
+          html += '<div class="admin-item">';
+          html += '<input type="text" value="' + items[i].name + '" onchange="editItemName(\'' + cat + '\',' + i + ',this.value)">';
+          html += '<input type="text" value="' + items[i].unit + '" onchange="editItemUnit(\'' + cat + '\',' + i + ',this.value)">';
+          html += '<button class="mini-btn del" onclick="deleteItem(\'' + cat + '\',' + i + ')">刪</button></div>';
+        }
+        html += '<div class="admin-item">';
+        html += '<input type="text" id="addname_' + cat + '" placeholder="新增工項名稱">';
+        html += '<input type="text" id="addunit_' + cat + '" placeholder="單位">';
+        html += '<button class="mini-btn" onclick="addItem(\'' + cat + '\')">＋</button></div>';
+        html += '</div>';
+        area.innerHTML += html;
+      }
+    }
+    function addCategory() {
+      var box = document.getElementById("newCatName");
+      var nm = box.value.trim();
+      if (nm === "") { alert("請輸入大類名稱"); return; }
+      if (categories[nm]) { alert("這個大類已經存在了"); return; }
+      categories[nm] = []; box.value = ""; saveCategories(); buildAdminPage();
+    }
+    function deleteCategory(cat) {
+      if (confirm("確定刪除「" + cat + "」整個大類？")) { delete categories[cat]; saveCategories(); buildAdminPage(); }
+    }
+    function addItem(cat) {
+      var nm = document.getElementById("addname_" + cat).value.trim();
+      var un = document.getElementById("addunit_" + cat).value.trim();
+      if (nm === "") { alert("請輸入工項名稱"); return; }
+      if (un === "") { un = "工"; }
+      categories[cat].push({ name: nm, unit: un }); saveCategories(); buildAdminPage();
+    }
+    function deleteItem(cat, index) {
+      if (confirm("確定刪除「" + categories[cat][index].name + "」？")) { categories[cat].splice(index, 1); saveCategories(); buildAdminPage(); }
+    }
+    function editItemName(cat, index, v) {
+      v = v.trim(); if (v === "") { alert("名稱不能空白"); buildAdminPage(); return; }
+      categories[cat][index].name = v; saveCategories();
+    }
+    function editItemUnit(cat, index, v) { categories[cat][index].unit = v.trim(); saveCategories(); }
+
+    function openProject(index) {
+      currentProjectIndex = index;
+      document.getElementById("page-list").classList.add("hidden");
+      document.getElementById("page-daily").classList.remove("hidden");
+      document.getElementById("dailyTitle").innerHTML = projects[index].name + "　日報";
+      var catNames = Object.keys(categories);
+      currentCategory = (catNames.length > 0) ? catNames[0] : "";
+      buildCategoryTabs(); buildWorkArea(); loadDaily();
+    }
+    function goBackToList() {
+      document.getElementById("page-daily").classList.add("hidden");
+      document.getElementById("page-list").classList.remove("hidden");
+    }
+    function selectWeather(period, element) {
+      var group = document.getElementById("weather-" + period);
+      var options = group.getElementsByClassName("weather-option");
+      for (var i = 0; i < options.length; i++) { options[i].classList.remove("selected"); }
+      element.classList.add("selected");
+    }
+    function buildCategoryTabs() {
+      var tabs = document.getElementById("catTabs");
+      tabs.innerHTML = "";
+      for (var cat in categories) {
+        var activeClass = (cat === currentCategory) ? " active" : "";
+        tabs.innerHTML += '<button class="cat-tab' + activeClass + '" onclick="switchCategory(\'' + cat + '\')">' + cat + '</button>';
+      }
+    }
+    function buildWorkArea() {
+      var area = document.getElementById("workArea");
+      area.innerHTML = "";
+      if (!currentCategory || !categories[currentCategory]) return;
+      var items = categories[currentCategory];
+      for (var i = 0; i < items.length; i++) {
+        var nm = items[i].name; var un = items[i].unit;
+        area.innerHTML +=
+          '<div class="work-item">' +
+            '<div class="work-head"><span class="work-name">' + nm + '</span><span class="work-unit">' + un + '</span></div>' +
+            '<div class="work-inputs">' +
+              '<div><div class="mini-label">上午</div><input type="number" class="num" id="am_' + nm + '" oninput="calcTotal(\'' + nm + '\')"></div>' +
+              '<div><div class="mini-label">下午</div><input type="number" class="num" id="pm_' + nm + '" oninput="calcTotal(\'' + nm + '\')"></div>' +
+              '<div><div class="mini-label">本日合計</div><div class="total" id="total_' + nm + '">0</div></div>' +
+            '</div>' +
+            '<div class="daigong-row"><input type="checkbox" id="dg_' + nm + '"><label for="dg_' + nm + '">代工</label>' +
+              '<input type="text" id="vendor_' + nm + '" placeholder="廠商名稱" style="flex:1; margin:0;"></div>' +
+            '<div class="field-label">今日工作內容</div><textarea id="today_' + nm + '" placeholder="今日施作內容/位置"></textarea>' +
+            '<div class="field-label">明日工作內容</div><textarea id="tomorrow_' + nm + '" placeholder="明日預定工作"></textarea>' +
+          '</div>';
+      }
+    }
+    function switchCategory(cat) {
+      saveCurrentInputs(); currentCategory = cat;
+      buildCategoryTabs(); buildWorkArea(); fillInputsFromDaily();
+    }
+    function calcTotal(itemName) {
+      var am = Number(document.getElementById("am_" + itemName).value) || 0;
+      var pm = Number(document.getElementById("pm_" + itemName).value) || 0;
+      document.getElementById("total_" + itemName).innerHTML = am + pm;
+    }
+    function getSelectedWeather(period) {
+      var options = document.getElementById("weather-" + period).getElementsByClassName("weather-option");
+      for (var i = 0; i < options.length; i++) {
+        if (options[i].classList.contains("selected")) { return options[i].innerHTML; }
+      }
+      return "";
+    }
+    function setSelectedWeather(period, text) {
+      var options = document.getElementById("weather-" + period).getElementsByClassName("weather-option");
+      for (var i = 0; i < options.length; i++) {
+        if (options[i].innerHTML === text) { options[i].classList.add("selected"); }
+        else { options[i].classList.remove("selected"); }
+      }
+    }
+    function saveCurrentInputs() {
+      if (currentProjectIndex === -1) return;
+      var d = projects[currentProjectIndex].daily || {};
+      var items = categories[currentCategory];
+      if (items) {
+        for (var i = 0; i < items.length; i++) {
+          var nm = items[i].name;
+          var amBox = document.getElementById("am_" + nm);
+          var pmBox = document.getElementById("pm_" + nm);
+          var dgBox = document.getElementById("dg_" + nm);
+          var vBox = document.getElementById("vendor_" + nm);
+          var tBox = document.getElementById("today_" + nm);
+          var mBox = document.getElementById("tomorrow_" + nm);
+          if (amBox) { d[nm + "_am"] = amBox.value; }
+          if (pmBox) { d[nm + "_pm"] = pmBox.value; }
+          if (dgBox) { d[nm + "_dg"] = dgBox.checked; }
+          if (vBox)  { d[nm + "_vendor"] = vBox.value; }
+          if (tBox)  { d[nm + "_today"] = tBox.value; }
+          if (mBox)  { d[nm + "_tomorrow"] = mBox.value; }
+        }
+      }
+      projects[currentProjectIndex].daily = d;
+    }
+    function fillInputsFromDaily() {
+      var d = projects[currentProjectIndex].daily || {};
+      var items = categories[currentCategory];
+      if (!items) return;
+      for (var i = 0; i < items.length; i++) {
+        var nm = items[i].name;
+        var amBox = document.getElementById("am_" + nm);
+        var pmBox = document.getElementById("pm_" + nm);
+        var dgBox = document.getElementById("dg_" + nm);
+        var vBox = document.getElementById("vendor_" + nm);
+        var tBox = document.getElementById("today_" + nm);
+        var mBox = document.getElementById("tomorrow_" + nm);
+        if (amBox) { amBox.value = d[nm + "_am"] || ""; }
+        if (pmBox) { pmBox.value = d[nm + "_pm"] || ""; }
+        if (dgBox) { dgBox.checked = d[nm + "_dg"] || false; }
+        if (vBox)  { vBox.value = d[nm + "_vendor"] || ""; }
+        if (tBox)  { tBox.value = d[nm + "_today"] || ""; }
+        if (mBox)  { mBox.value = d[nm + "_tomorrow"] || ""; }
+        calcTotal(nm);
+      }
+    }
+
+    /* ===== 照片 ===== */
+    function addPhotos(event) {
+      var files = event.target.files;
+      if (!files || files.length === 0) return;
+      for (var i = 0; i < files.length; i++) {
+        shrinkImage(files[i], function (smallDataUrl) {
+          currentPhotos.push(smallDataUrl);
+          renderPhotos();
+          savePhotosToDaily();
+        });
+      }
+      event.target.value = "";
+    }
+    function shrinkImage(file, callback) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var max = 1000;
+          var w = img.width, h = img.height;
+          if (w > h && w > max) { h = h * max / w; w = max; }
+          else if (h > max) { w = w * max / h; h = max; }
+          var canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          callback(canvas.toDataURL("image/jpeg", 0.7));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    function renderPhotos() {
+      var grid = document.getElementById("photoGrid");
+      grid.innerHTML = "";
+      for (var i = 0; i < currentPhotos.length; i++) {
+        grid.innerHTML +=
+          '<div class="photo-item"><img src="' + currentPhotos[i] + '">' +
+            '<button class="del-photo" onclick="deletePhoto(' + i + ')">刪</button></div>';
+      }
+    }
+    function deletePhoto(index) {
+      currentPhotos.splice(index, 1);
+      renderPhotos();
+      savePhotosToDaily();
+    }
+    function savePhotosToDaily() {
+      if (currentProjectIndex === -1) return;
+      projects[currentProjectIndex].daily.photos = currentPhotos;
+      saveProjects();
+    }
+
+    function saveDaily() {
+      if (currentProjectIndex === -1) return;
+      saveCurrentInputs();
+      var d = projects[currentProjectIndex].daily;
+      d.weatherAM = getSelectedWeather("am");
+      d.weatherPM = getSelectedWeather("pm");
+      d.reportDate = document.getElementById("reportDate").value;
+      d.photos = currentPhotos;
+      projects[currentProjectIndex].daily = d;
+      saveProjects();
+      var tip = document.getElementById("saveTip");
+      tip.innerHTML = "✓ 已儲存";
+      setTimeout(function () { tip.innerHTML = ""; }, 2000);
+    }
+    function loadDaily() {
+      var d = projects[currentProjectIndex].daily || {};
+      setSelectedWeather("am", d.weatherAM || "");
+      setSelectedWeather("pm", d.weatherPM || "");
+      document.getElementById("reportDate").value = d.reportDate || "";
+      currentPhotos = d.photos || [];
+      renderPhotos();
+      fillInputsFromDaily();
+    }
+
+    /* ===== 輸出 PDF ===== */
+    function exportPDF() {
+      if (currentProjectIndex === -1) return;
+      saveCurrentInputs();
+
+      var proj = projects[currentProjectIndex];
+      var d = proj.daily || {};
+      var dateStr = document.getElementById("reportDate").value || "（未選日期）";
+      var amW = getSelectedWeather("am") || "—";
+      var pmW = getSelectedWeather("pm") || "—";
+
+      var html = '';
+      html += '<div class="report-title">營建工程管理日報表</div>';
+      html += '<table class="report">';
+      html += '<tr><td class="label">專案名稱</td><td>' + proj.name + '</td><td class="label">公司名稱</td><td>' + proj.company + '</td></tr>';
+      html += '<tr><td class="label">日報日期</td><td>' + dateStr + '</td><td class="label">天氣</td><td>上午：' + amW + '　下午：' + pmW + '</td></tr>';
+      html += '</table>';
+
+      html += '<div class="report-subtitle">人員、材料、機具進場紀錄</div>';
+      html += '<table class="report work-table">';
+      html += '<tr><th>大項</th><th>項目</th><th>單位</th><th>上午</th><th>下午</th><th>本日合計</th><th>代工</th><th>廠商</th><th>今日工作內容</th><th>明日工作內容</th></tr>';
+      var hasAnyRow = false;
+      for (var cat in categories) {
+        var items = categories[cat];
+        for (var i = 0; i < items.length; i++) {
+          var nm = items[i].name, un = items[i].unit;
+          var am = d[nm + "_am"] || "", pm = d[nm + "_pm"] || "";
+          var dg = d[nm + "_dg"] || false, vendor = d[nm + "_vendor"] || "";
+          var today = d[nm + "_today"] || "", tomorrow = d[nm + "_tomorrow"] || "";
+          var hasData = (am !== "" || pm !== "" || today !== "" || tomorrow !== "" || vendor !== "" || dg);
+          if (!hasData) { continue; }
+          hasAnyRow = true;
+          var total = (Number(am) || 0) + (Number(pm) || 0);
+          var dgMark = dg ? "■" : "";
+          html += '<tr><td>' + cat + '</td><td>' + nm + '</td><td>' + un + '</td>' +
+            '<td style="text-align:center;">' + am + '</td><td style="text-align:center;">' + pm + '</td>' +
+            '<td style="text-align:center;">' + total + '</td><td style="text-align:center;">' + dgMark + '</td>' +
+            '<td>' + vendor + '</td><td>' + today + '</td><td>' + tomorrow + '</td></tr>';
+        }
+      }
+      if (!hasAnyRow) { html += '<tr><td colspan="10" style="text-align:center; color:#888;">（今日尚無填寫工項）</td></tr>'; }
+      html += '</table>';
+
+      html += '<table class="sign-table"><tr><td>主管</td><td>工地主任</td><td>工程師</td></tr></table>';
+
+      var photos = d.photos || [];
+      if (photos.length > 0) {
+        html += '<div class="page-break"></div>';
+        html += '<div class="report-subtitle">現場照片</div>';
+        html += '<div class="report-photos">';
+        for (var p = 0; p < photos.length; p++) {
+          html += '<img src="' + photos[p] + '">';
+        }
+        html += '</div>';
+      }
+
+      document.getElementById("printArea").innerHTML = html;
+      window.print();
+    }
+
+    loadCategories();
+    loadProjects();
+  </script>
+</body>
+</html>
